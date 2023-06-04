@@ -91,7 +91,7 @@ def get_processed_data(data_location: str):
 
 
 @task
-def train_model(model_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
+def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
     """Train the model using NMF (Nonnegative Matrix Factorization)
 
     Parameters
@@ -114,7 +114,9 @@ def train_model(model_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
     print(f"Training NMF model with rank {rank}")
 
     # Perform NMF with multiple runs and multiplicative updates
-    nmf = nimfa.Nmf(ll_data, max_iter=5, rank=rank, n_run=30, objective="rss")
+    nmf = nimfa.Nmf(
+        ll_data, max_iter=5, rank=nmf_params.rank, n_run=30, objective="rss"
+    )
     nmf_fit = nmf()
 
     # Print RSS of best model
@@ -211,7 +213,7 @@ def save_predictions(predictions: np.array, save_path: str):
 @flow
 def train(
     location: Location = Location(),
-    svc_params: ModelParams = ModelParams(),
+    nmf_params: ModelParams = ModelParams(),
 ):
     """Flow to train the model
 
@@ -223,7 +225,7 @@ def train(
         Configurations for training the model, by default ModelParams()
     """
     processed_data = get_processed_data(location.data_process)
-    W, H = train_model(svc_params, processed_data["ll_data"])
+    W, H = train_model(nmf_params, processed_data["ll_data"])
 
     original_data = get_raw_data(location.data_raw)
     save_spikes_to_label(original_data, W, H)

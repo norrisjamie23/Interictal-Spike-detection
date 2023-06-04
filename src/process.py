@@ -39,16 +39,23 @@ def line_length(a, w=20):
 
 
 @task
-def process_data(data: mne.io.edf.edf.RawEDF, highpass_freq=50):
-    """Drop unimportant columns
+def process_data(data: mne.io.edf.edf.RawEDF, config):
+    """Apply pre-processing, including line-length transformation
 
     Parameters
     ----------
-    data : pd.DataFrame
-        Data to process
-    columns : list
-        Columns to drop
+    data : mne.io.edf.edf.RawEDF
+        Data to process.
+    config : dict
+        Configuration parameters.
+
+        Returns
+    -------
+    np.ndarray
+        Line-length transformed data.
+
     """
+
     # Get data as a NumPy array
     raw = data.get_data()
 
@@ -58,9 +65,8 @@ def process_data(data: mne.io.edf.edf.RawEDF, highpass_freq=50):
     # Create a new RawEDF object with the zero-centred data
     data = mne.io.RawArray(raw, data.info)
 
-    # Bandpass filter between 0.1 and 50/200 Hz
-    # Note: it should be with a butter filter of order 2
-    data.filter(0.1, highpass_freq)
+    # Bandpass filter between 0.1 and highpass_freq (Default: 50 Hz)
+    data.filter(0.1, config.highpass_freq)
 
     # Get data as a NumPy array
     raw = data.get_data()
@@ -80,7 +86,7 @@ def process_data(data: mne.io.edf.edf.RawEDF, highpass_freq=50):
     data = mne.io.RawArray(raw, data.info)
 
     # Notch filter from 50 Hz, up in 50 Hz increments
-    notch_filter_freqs = np.arange(50, highpass_freq, 50)
+    notch_filter_freqs = np.arange(50, config.highpass_freq, 50)
     if len(notch_filter_freqs) > 0:
         data.notch_filter(notch_filter_freqs)
 
@@ -102,8 +108,8 @@ def process_data(data: mne.io.edf.edf.RawEDF, highpass_freq=50):
     # Low-pass filter at 20 Hz
     data.filter(None, 20)
 
-    # Resample to 50 Hz
-    data.resample(sfreq=50)
+    # Resample (default: 50 Hz)
+    data.resample(sfreq=config.H_freq)
 
     # Get data as a NumPy array
     ll_data = data.get_data()
@@ -115,19 +121,29 @@ def process_data(data: mne.io.edf.edf.RawEDF, highpass_freq=50):
 
 
 @task
-def split_train_test(ll_data):
-    """_summary_
+def package_data(ll_data, highpass_freq, H_freq):
+    """Package line-length transformed data for saving.
 
     Parameters
     ----------
-    X : pd.DataFrame
-        Features
-    y : pd.DataFrame
-        Target
-    test_size : int
-        Size of the test set
+    ll_data : np.ndarray
+        Line-length transformed data.
+    highpass_freq : int
+        High-pass filter frequency.
+    H_freq : int
+        Resampling frequency.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the packaged data and parameters.
+
     """
-    return {"ll_data": ll_data}
+    return {
+        "ll_data": ll_data,
+        "highpass_freq": highpass_freq,
+        "H_freq": H_freq,
+    }
 
 
 @task
@@ -159,10 +175,10 @@ def process(
         Configurations for processing data, by default ProcessConfig()
     """
     data = get_raw_data(location.data_raw)
-    processed_data = process_data(data)
-    dict_data = split_train_test(processed_data)
+    processed_data = process_data(data, config)
+    dict_data = package_data(processed_data, config)
     save_processed_data(dict_data, location.data_process)
 
 
 if __name__ == "__main__":
-    process(config=ProcessConfig(test_size=0.1))
+    process(config=ProcessConfig())
