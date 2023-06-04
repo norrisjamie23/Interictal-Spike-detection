@@ -1,32 +1,7 @@
 """
 create Pydantic models
 """
-from typing import List
-
 from pydantic import BaseModel, validator
-
-
-def must_be_non_negative(v: float) -> float:
-    """Check if the v is non-negative
-
-    Parameters
-    ----------
-    v : float
-        value
-
-    Returns
-    -------
-    float
-        v
-
-    Raises
-    ------
-    ValueError
-        Raises error when v is negative
-    """
-    if v < 0:
-        raise ValueError(f"{v} must be non-negative")
-    return v
 
 
 class Location(BaseModel):
@@ -46,18 +21,9 @@ class ProcessConfig(BaseModel):
 
     highpass_freq = 50
     H_freq: int = 50
-    rank: int = 5
-
-    _validated_test_size = validator("test_size", allow_reuse=True)(
-        must_be_non_negative
-    )
 
 
 class ModelParams(BaseModel):
     """Specify the parameters of the `train` flow"""
 
     rank: int = 5
-
-    _validated_fields = validator("*", allow_reuse=True, each_item=True)(
-        must_be_non_negative
-    )
