@@ -1,13 +1,81 @@
 """Python script to train the model"""
 import joblib
+import mne
 import nimfa
 import numpy as np
 import pandas as pd
 from prefect import flow, task
-from sklearn.model_selection import GridSearchCV
-from sklearn.svm import SVC
+from scipy.signal import savgol_filter
 
 from config import Location, ModelParams
+
+# from utils import get_raw_data
+
+
+def get_minimum_thresh(H, k=1):
+    """Compute the threshold to use for scipy.signal.find_peaks
+
+    Parameters
+    ----------
+    H : array-like
+        The activation function for a single basis function
+    k : int, optional
+        Scaling factor for determining the threshold (default is 1)
+
+    Returns
+    -------
+    threshold : float
+        The computed threshold value for detection
+    """
+
+    # Determine the number of bins
+    nbin = min(round(0.1 * len(H)), 1000)
+
+    # Compute the probability density function (PDF) using histogram
+    n, x = np.histogram(H, nbin)
+
+    # Convert bin edges to bin centers
+    x = (x[1:] + x[:-1]) / 2
+
+    # Exclude the first five bins (can be high if many bad times)
+    n = n[5:]
+    x = x[5:]
+
+    # Smooth the PDF using a third-degree polynomial fit
+    n_s = savgol_filter(n, 11, 3)
+
+    # Exclude the last 11 points as they can be skewed by smoothing
+    n = n[:-11]
+    n_s = n_s[:-11]
+    x = x[:-11]
+
+    # Find the position of the mode/peak of the PDF
+    modn = np.argmax(n_s)
+
+    # Compute the first derivative (max difference between bins)
+    d1 = np.diff(n_s)
+    d1 = np.insert(d1, 0, d1[0], axis=0)
+    d1_s = savgol_filter(d1, 11, 3)
+
+    # Find the position of the minimum on the right of the mode
+    mr = np.argmin(d1_s[modn:])
+    mr = mr + modn
+
+    # Compute the second derivative (max relative difference between bins)
+    d2 = np.diff(d1_s)
+    d2 = np.insert(d2, 0, d2[0], axis=0)
+
+    # Smooth the second derivative (not sure if needed, decide whether to remove this line and amend line below)
+    d2_s = savgol_filter(d2, 11, 3)
+
+    # Find the position of the second maxima of the second derivative
+    ix = np.argmax(d2_s[mr:])
+    ix = ix + mr
+
+    # Compute the threshold as k times the distance between mr and ix
+    threshold = x[ix + k * (ix - mr)]
+
+    return threshold
 
 
 @task
@@ -23,8 +91,8 @@ def get_processed_data(data_location: str):
 
 
 @task
-def train_model(model_params: ModelParams, ll_data: np.ndarray):
-    """Train the model
+def train_model(model_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
+    """Train the model using NMF (Nonnegative Matrix Factorization)
 
     Parameters
     ----------
@@ -32,24 +100,32 @@ def train_model(model_params: ModelParams, ll_data: np.ndarray):
         Parameters for the model
     ll_data : np.ndarray
         Line-length transformed data to use for training
+    rank : int, optional
+        Rank of the factorization (default is 5)
+
+    Returns
+    -------
+    W : np.ndarray
+        Matrix of basis vectors (weights)
+    H : np.ndarray
+        Matrix of activation scores (coefficients)
     """
 
-    rank = 5
+    print(f"Training NMF model with rank {rank}")
 
-    print("Training model")
-
-    # 30 sets of randomly initialised BFs, 5 iterations, multiplicative updates
+    # Perform NMF with multiple runs and multiplicative updates
     nmf = nimfa.Nmf(ll_data, max_iter=5, rank=rank, n_run=30, objective="rss")
     nmf_fit = nmf()
 
     # Print RSS of best model
-    print("RSS: %5.4f" % nmf_fit.fit.rss())
+    print("Initial model RSS: %5.4f" % nmf_fit.fit.rss())
 
-    # Get W and H to initialise next nmf (Alternating Nonnegative Least Squares Matrix Factorization)
+    # Get W and H to initialise next NMF (Alternating Nonnegative Least Squares Matrix Factorization)
     W = nmf_fit.basis()
     H = nmf_fit.coef()
 
-    # Fit a single model initialising from best prior model, up to either 1000 iterations or min_residual of 1e-4
+    # Fit a single model, initialising from the best prior model,
+    # up to either 1000 iterations or min_residual of 1e-4
     lsnmf = nimfa.Lsnmf(
         ll_data,
         seed="fixed",
@@ -62,49 +138,62 @@ def train_model(model_params: ModelParams, ll_data: np.ndarray):
     lsnmf_fit = lsnmf()
 
     # Print RSS of final model
-    print("RSS: %5.4f" % lsnmf_fit.fit.rss())
+    print("Final model RSS: %5.4f" % lsnmf_fit.fit.rss())
 
+    # Get weights (W) and activation scores (H)
     W = np.array(lsnmf_fit.basis())
     H = np.array(lsnmf_fit.coef())
 
-    # Below shouldn't be necessary, but keeping for now as I surely considered that last time
-    # model = NMF(n_components=rank, max_iter=1, init='custom')
-
-    # H = model.fit_transform(np.matmul(W, H).T, W=H.T.copy(order='C'), H=W.T.copy(order='C')).T
-    # W = model.components_.T
-
-    # # Reset max_iter, e.g., for inference
-    # model.set_params(max_iter=1000)
-
-    # np.save("W.npy", W)
-
-    # return H matrix for training set
-    return W
+    return W, H
 
 
 @task
-def predict(grid: GridSearchCV, X_test: pd.DataFrame):
-    """_summary_
+def save_spikes_to_label(
+    original_data: mne.io.edf.edf.RawEDF,
+    H: np.ndarray,
+    W: np.ndarray,
+    num_chans: int = 20,
+    percentile_increments: int = 10,
+):
 
-    Parameters
-    ----------
-    grid : GridSearchCV
-    X_test : pd.DataFrame
-        Features for testing
-    """
-    return grid.predict(X_test)
+    pass
+
+
+# @task
+# def predict(grid: GridSearchCV, X_test: pd.DataFrame):
+#     """_summary_
+
+#     Parameters
+#     ----------
+#     grid : GridSearchCV
+#     X_test : pd.DataFrame
+#         Features for testing
+#     """
+#     return grid.predict(X_test)
 
 
 @task
-def save_model(model: GridSearchCV, save_path: str):
-    """Save model to a specified location
+def get_raw_data(data_location: str):
+    """Read raw data
 
     Parameters
     ----------
-    model : GridSearchCV
-    save_path : str
+    data_location : str
+        The location of the raw data
     """
-    joblib.dump(model, save_path)
+    return mne.io.read_raw_edf(data_location, preload=True)
+
+
+# @task
+# def save_model(model: GridSearchCV, save_path: str):
+#     """Save model to a specified location
+
+#     Parameters
+#     ----------
+#     model : GridSearchCV
+#     save_path : str
+#     """
+#     joblib.dump(model, save_path)
 
 
 @task
@@ -133,11 +222,15 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
-    data = get_processed_data(location.data_process)
-    model = train_model(svc_params, data["ll_data"])
-    predictions = predict(model, data["X_test"])
-    save_model(model, save_path=location.model)
-    save_predictions(predictions, save_path=location.data_final)
+    processed_data = get_processed_data(location.data_process)
+    W, H = train_model(svc_params, processed_data["ll_data"])
+
+    original_data = get_raw_data(location.data_raw)
+    save_spikes_to_label(original_data, W, H)
+
+    # predictions = predict(model, data["X_test"])
+    # save_model(model, save_path=location.model)
+    # save_predictions(predictions, save_path=location.data_final)
 
 
 if __name__ == "__main__":
