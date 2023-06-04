@@ -44,9 +44,9 @@ class Location(BaseModel):
 class ProcessConfig(BaseModel):
     """Specify the parameters of the `process` flow"""
 
-    drop_columns: List[str] = ["Id"]
-    label: str = "Species"
-    test_size: float = 0.3
+    highpass_freq = 50
+    H_freq: int = 50
+    rank: int = 5
 
     _validated_test_size = validator("test_size", allow_reuse=True)(
         must_be_non_negative
@@ -56,8 +56,7 @@ class ProcessConfig(BaseModel):
 class ModelParams(BaseModel):
     """Specify the parameters of the `train` flow"""
 
-    C: List[float] = [0.1, 1, 10, 100, 1000]
-    gamma: List[float] = [1, 0.1, 0.01, 0.001, 0.0001]
+    rank: int = 5
 
     _validated_fields = validator("*", allow_reuse=True, each_item=True)(
         must_be_non_negative
