@@ -5,77 +5,9 @@ import nimfa
 import numpy as np
 import pandas as pd
 from prefect import flow, task
-from scipy.signal import savgol_filter
 
-from config import Location, ModelParams
-
-# from utils import get_raw_data
-
-
-def get_minimum_thresh(H, k=1):
-    """Compute the threshold to use for scipy.signal.find_peaks
-
-    Parameters
-    ----------
-    H : array-like
-        The activation function for a single basis function
-    k : int, optional
-        Scaling factor for determining the threshold (default is 1)
-
-    Returns
-    -------
-    threshold : float
-        The computed threshold value for detection
-    """
-
-    # Determine the number of bins
-    nbin = min(round(0.1 * len(H)), 1000)
-
-    # Compute the probability density function (PDF) using histogram
-    n, x = np.histogram(H, nbin)
-
-    # Convert bin edges to bin centers
-    x = (x[1:] + x[:-1]) / 2
-
-    # Exclude the first five bins (can be high if many bad times)
-    n = n[5:]
-    x = x[5:]
-
-    # Smooth the PDF using a third-degree polynomial fit
-    n_s = savgol_filter(n, 11, 3)
-
-    # Exclude the last 11 points as they can be skewed by smoothing
-    n = n[:-11]
-    n_s = n_s[:-11]
-    x = x[:-11]
-
-    # Find the position of the mode/peak of the PDF
-    modn = np.argmax(n_s)
-
-    # Compute the first derivative (max difference between bins)
-    d1 = np.diff(n_s)
-    d1 = np.insert(d1, 0, d1[0], axis=0)
-    d1_s = savgol_filter(d1, 11, 3)
-
-    # Find the position of the minimum on the right of the mode
-    mr = np.argmin(d1_s[modn:])
-    mr = mr + modn
-
-    # Compute the second derivative (max relative difference between bins)
-    d2 = np.diff(d1_s)
-    d2 = np.insert(d2, 0, d2[0], axis=0)
-
-    # Smooth the second derivative (not sure if needed, decide whether to remove this line and amend line below)
-    d2_s = savgol_filter(d2, 11, 3)
-
-    # Find the position of the second maxima of the second derivative
-    ix = np.argmax(d2_s[mr:])
-    ix = ix + mr
-
-    # Compute the threshold as k times the distance between mr and ix
-    threshold = x[ix + k * (ix - mr)]
-
-    return threshold
+from config import Location, ModelParams, PreprocessParams
+from utils import find_valid_peaks, get_raw_data
 
 
 @task
@@ -117,6 +49,11 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
     nmf = nimfa.Nmf(
         ll_data, max_iter=5, rank=nmf_params.rank, n_run=30, objective="rss"
     )
+    # nmf = nimfa.Nmf(
+    #     ll_data, max_iter=1, rank=nmf_params.rank, n_run=1, objective="rss"
+    # )
+    # TODO enable above
+
     nmf_fit = nmf()
 
     # Print RSS of best model
@@ -135,6 +72,7 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
         H=H,
         rank=rank,
         max_iter=1000,
+        # max_iter=1,#000, TODO change to 1000
         min_residuals=1e-4,
     )
     lsnmf_fit = lsnmf()
@@ -143,8 +81,8 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
     print("Final model RSS: %5.4f" % lsnmf_fit.fit.rss())
 
     # Get weights (W) and activation scores (H)
-    W = np.array(lsnmf_fit.basis())
-    H = np.array(lsnmf_fit.coef())
+    H = np.array(lsnmf_fit.basis())
+    W = np.array(lsnmf_fit.coef())
 
     return W, H
 
@@ -154,11 +92,29 @@ def save_spikes_to_label(
     original_data: mne.io.edf.edf.RawEDF,
     H: np.ndarray,
     W: np.ndarray,
+    preprocess_params,
     num_chans: int = 20,
-    percentile_increments: int = 10,
+    spikes_per_cluster: int = 10,
+    segment_length: int = 10,
+    max_spike_freq=0.3,
 ):
 
-    pass
+    for base_idx in range(H.shape[0]):
+
+        # Get top num_chans channels by weight in original order
+        top_chans = np.sort(
+            np.argpartition(W[:, base_idx], -num_chans)[-num_chans:]
+        )
+
+        # Find peaks that are at least max_spike_freq seconds apart
+        peaks = find_valid_peaks(
+            H[base_idx], preprocess_params.H_freq, max_spike_freq
+        )
+
+        top_chans
+        peaks
+
+        pass
 
 
 # @task
@@ -172,20 +128,6 @@ def save_spikes_to_label(
 #         Features for testing
 #     """
 #     return grid.predict(X_test)
-
-
-@task
-def get_raw_data(data_location: str):
-    """Read raw data
-
-    Parameters
-    ----------
-    data_location : str
-        The location of the raw data
-    """
-    return mne.io.read_raw_edf(data_location, preload=True)
-
-
 # @task
 # def save_model(model: GridSearchCV, save_path: str):
 #     """Save model to a specified location
@@ -214,6 +156,7 @@ def save_predictions(predictions: np.array, save_path: str):
 def train(
     location: Location = Location(),
     nmf_params: ModelParams = ModelParams(),
+    preprocess_params: PreprocessParams = PreprocessParams(),
 ):
     """Flow to train the model
 
@@ -228,7 +171,7 @@ def train(
     W, H = train_model(nmf_params, processed_data["ll_data"])
 
     original_data = get_raw_data(location.data_raw)
-    save_spikes_to_label(original_data, W, H)
+    save_spikes_to_label(original_data, W, H, preprocess_params)
 
     # predictions = predict(model, data["X_test"])
     # save_model(model, save_path=location.model)
