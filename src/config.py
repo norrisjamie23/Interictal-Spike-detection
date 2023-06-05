@@ -18,9 +18,9 @@ class Location(BaseModel):
 
 
 class PreprocessParams(BaseModel):
-    """Specify the parameters of the `process` flow"""
+    """Specify the parameters of the `preprocess` flow"""
 
-    highpass_freq = 50
+    highpass_freq: int = 50
     H_freq: int = 50
 
 
