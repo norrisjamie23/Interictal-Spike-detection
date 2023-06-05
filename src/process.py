@@ -5,7 +5,7 @@ import mne
 import numpy as np
 from prefect import flow, task
 
-from config import Location, ProcessConfig
+from config import Location, PreprocessConfig
 from utils import get_raw_data
 
 
@@ -163,7 +163,7 @@ def save_processed_data(data: dict, save_location: str):
 @flow
 def process(
     location: Location = Location(),
-    config: ProcessConfig = ProcessConfig(),
+    config: PreprocessConfig = PreprocessConfig(),
 ):
     """Flow to process the ata
 
@@ -171,8 +171,8 @@ def process(
     ----------
     location : Location, optional
         Locations of inputs and outputs, by default Location()
-    config : ProcessConfig, optional
-        Configurations for processing data, by default ProcessConfig()
+    config : PreprocessConfig, optional
+        Configurations for processing data, by default PreprocessConfig()
     """
     data = get_raw_data(location.data_raw)
     processed_data = process_data(data, config)
@@ -181,4 +181,4 @@ def process(
 
 
 if __name__ == "__main__":
-    process(config=ProcessConfig())
+    process(config=PreprocessConfig())

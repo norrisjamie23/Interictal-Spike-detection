@@ -7,7 +7,7 @@ from scipy.signal import find_peaks, savgol_filter
 
 
 @task
-def get_raw_data(data_location: str):
+def get_raw_data(data_location: str, preload: bool = True):
     """Read raw data
 
     Parameters
@@ -15,7 +15,7 @@ def get_raw_data(data_location: str):
     data_location : str
         The location of the raw data
     """
-    return mne.io.read_raw_edf(data_location, preload=True)
+    return mne.io.read_raw_edf(data_location, preload=preload)
 
 
 def get_minimum_thresh(H: np.ndarray, k=1):
@@ -84,9 +84,7 @@ def get_minimum_thresh(H: np.ndarray, k=1):
     return threshold
 
 
-def find_valid_peaks(
-    activation: np.ndarray, activation_freq: int, max_spike_freq
-):
+def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq):
     """Find valid peaks in the activation function.
 
     Parameters
@@ -110,9 +108,105 @@ def find_valid_peaks(
     height = get_minimum_thresh(activation)
 
     # Minimum number of datapoints between detections (default: 0.3s)
-    distance = max_spike_freq * activation_freq
+    distance = max_spike_freq * H_freq
 
     #  With SciPy, identify peaks that exceed minimum threshold
     peaks = find_peaks(activation, height=height, distance=distance)
 
     return peaks[0], peaks[1]["peak_heights"]
+
+
+def remove_border_spikes(
+    peak_indices: np.ndarray,
+    peak_heights: np.ndarray,
+    H_freq: int,
+    context: int,
+    activation_len: int,
+):
+    """Remove spikes that occur within the first and last context seconds of the activation function.
+
+    Parameters
+    ----------
+    peak_indices : np.ndarray
+        The indices of the identified peaks.
+    peak_heights : np.ndarray
+        The corresponding heights of the identified peaks.
+    H_freq : int
+        The frequency (or sample rate) at which the activation function H is recorded.
+    context : int
+        The number of seconds of context to exclude from the beginning and end of the activation function.
+    activation_len : int
+        The length of the activation function (in datapoints).
+
+    Returns
+    -------
+    peak_indices : array-like
+        The indices of the identified peaks after removing spikes within the border.
+    peak_heights : array-like
+        The corresponding heights of the identified peaks after removing spikes within the border.
+    """
+
+    # Get peaks outside of first 5s
+    peak_heights = peak_heights[peak_indices > H_freq * context]
+    peak_indices = peak_indices[peak_indices > H_freq * context]
+
+    # Get peaks outside of last 5s
+    peak_heights = peak_heights[
+        peak_indices < activation_len - H_freq * context
+    ]
+    peak_indices = peak_indices[
+        peak_indices < activation_len - H_freq * context
+    ]
+
+    return peak_indices, peak_heights
+
+
+def get_thresholds(
+    peak_heights: np.ndarray,
+    num_thresholds: int = 10,
+    log_transform: bool = True,
+):
+    """Compute a range of potential thresholds for identifying interictal spikes.
+
+    Parameters
+    ----------
+    peak_heights : np.ndarray
+        The heights of the potential peaks corresponding to interictal spikes.
+    num_thresholds : int, optional
+        The number of thresholds to generate (default is 10).
+    log_transform : bool, optional
+        Flag indicating whether to apply a logarithmic transformation to the peak heights (default is True).
+
+    Returns
+    -------
+    thresholds : np.ndarray
+        An array of potential thresholds for identifying interictal spikes.
+
+    Notes
+    -----
+    This function generates a range of potential thresholds based on the heights of potential peaks.
+    It offers two options for threshold generation:
+    1. Linear spacing: If log_transform is set to False, thresholds are linearly spaced across the range of heights.
+    2. Logarithmic spacing: If log_transform is set to True, thresholds are logarithmically spaced.
+    """
+
+    if log_transform:
+        # Apply logarithmic transformation to the peak heights
+        peak_heights = np.log(peak_heights)
+
+    # Compute the step size between thresholds
+    step_size = (np.max(peak_heights) - np.min(peak_heights)) / (
+        num_thresholds + 1
+    )
+
+    # Generate the thresholds
+    thresholds = np.arange(
+        np.min(peak_heights) + step_size, np.max(peak_heights), step_size
+    )
+
+    if log_transform:
+        # Convert the thresholds back to the original scale using exponential function
+        thresholds = np.exp(thresholds)
+
+    # Return a subset of thresholds based on the specified num_thresholds parameter
+    return thresholds[:num_thresholds]
