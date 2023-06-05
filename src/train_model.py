@@ -3,7 +3,6 @@ import joblib
 import mne
 import nimfa
 import numpy as np
-import pandas as pd
 from prefect import flow, task
 from scipy.signal import resample
 
