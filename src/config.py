@@ -16,7 +16,7 @@ class Location(BaseModel):
     output_notebook: str = "notebooks/results.ipynb"
 
 
-class ProcessConfig(BaseModel):
+class PreprocessParams(BaseModel):
     """Specify the parameters of the `process` flow"""
 
     highpass_freq = 50
