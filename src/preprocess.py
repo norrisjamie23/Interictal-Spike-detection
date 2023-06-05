@@ -1,4 +1,4 @@
-"""Python script to process the data"""
+"""Python script to preprocess the data"""
 
 import joblib
 import mne
@@ -39,13 +39,13 @@ def line_length(a, w=20):
 
 
 @task
-def process_data(data: mne.io.edf.edf.RawEDF, config):
+def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
     """Apply pre-processing, including line-length transformation
 
     Parameters
     ----------
     data : mne.io.edf.edf.RawEDF
-        Data to process.
+        Data to preprocess.
     config : dict
         Configuration parameters.
 
@@ -147,13 +147,13 @@ def package_data(ll_data, highpass_freq, H_freq):
 
 
 @task
-def save_processed_data(data: dict, save_location: str):
-    """Save processed data
+def save_preprocessed_data(data: dict, save_location: str):
+    """Save preprocessed data
 
     Parameters
     ----------
     data : dict
-        Data to process
+        Data to preprocess
     save_location : str
         Where to save the data
     """
@@ -161,24 +161,24 @@ def save_processed_data(data: dict, save_location: str):
 
 
 @flow
-def process(
+def preprocess(
     location: Location = Location(),
     config: PreprocessConfig = PreprocessConfig(),
 ):
-    """Flow to process the ata
+    """Flow to preprocess the ata
 
     Parameters
     ----------
     location : Location, optional
         Locations of inputs and outputs, by default Location()
     config : PreprocessConfig, optional
-        Configurations for processing data, by default PreprocessConfig()
+        Configurations for preprocessing data, by default PreprocessConfig()
     """
     data = get_raw_data(location.data_raw)
-    processed_data = process_data(data, config)
-    dict_data = package_data(processed_data, config)
-    save_processed_data(dict_data, location.data_process)
+    preprocessed_data = preprocess_data(data, config)
+    dict_data = package_data(preprocessed_data, config)
+    save_preprocessed_data(dict_data, location.data_preprocess)
 
 
 if __name__ == "__main__":
-    process(config=PreprocessConfig())
+    preprocess(config=PreprocessConfig())

@@ -13,8 +13,8 @@ from utils import (find_valid_peaks, get_raw_data, get_thresholds,
 
 
 @task
-def get_processed_data(data_location: str):
-    """Get processed data from a specified location
+def get_preprocessed_data(data_location: str):
+    """Get preprocessed data from a specified location
 
     Parameters
     ----------
@@ -25,7 +25,7 @@ def get_processed_data(data_location: str):
 
 
 @task
-def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
+def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
     """Train the model using NMF (Nonnegative Matrix Factorization)
 
     Parameters
@@ -34,8 +34,6 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
         Parameters for the model
     ll_data : np.ndarray
         Line-length transformed data to use for training
-    rank : int, optional
-        Rank of the factorization (default is 5)
 
     Returns
     -------
@@ -45,11 +43,11 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
         Matrix of activation scores (coefficients)
     """
 
-    print(f"Training NMF model with rank {rank}")
+    print(f"Training NMF model with rank {nmf_params.rank}")
 
     # Perform NMF with multiple runs and multiplicative updates
     nmf = nimfa.Nmf(
-        ll_data, max_iter=5, rank=nmf_params.rank, n_run=30, objective="rss"
+        ll_data, max_iter=5, rank=nmf_params.rank, n_run=30
     )
     nmf_fit = nmf()
 
@@ -67,7 +65,7 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
         seed="fixed",
         W=W,
         H=H,
-        rank=rank,
+        rank=nmf_params.rank,
         max_iter=1000,
         min_residuals=1e-4,
     )
@@ -253,8 +251,8 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
-    processed_data = get_processed_data(location.data_process)
-    W, H = train_model(nmf_params, processed_data["ll_data"])
+    preprocessed_data = get_preprocessed_data(location.data_preprocess)
+    W, H = train_model(nmf_params, preprocessed_data["ll_data"])
 
     original_data = get_raw_data(location.data_raw, preload=False)
     save_spikes_for_labelling(
