@@ -8,7 +8,8 @@ from prefect import flow, task
 from scipy.signal import resample
 
 from config import Location, ModelParams, PreprocessParams
-from utils import find_valid_peaks, get_raw_data, get_thresholds, remove_border_spikes
+from utils import (find_valid_peaks, get_raw_data, get_thresholds,
+                   remove_border_spikes)
 
 
 @task
@@ -100,6 +101,32 @@ def save_spikes_for_labelling(
     context: int = 5,
     max_spike_freq=0.3,
 ):
+    """
+    Save potential spikes for manual labelling.
+
+    Parameters:
+    - original_data: RawEDF
+        The original EEG data.
+    - H: ndarray
+        The spike activation matrix.
+    - W: ndarray
+        The weight matrix.
+    - preprocess_params: object
+        The preprocessing parameters.
+    - save_location: str
+        The file path to save the processed data.
+    - num_chans: int, optional
+        The number of channels to consider (default is 20).
+    - spikes_per_cluster: int, optional
+        The number of spikes to select per cluster (default is 10).
+    - context: int, optional
+        The context duration in seconds around each spike (default is 5).
+    - max_spike_freq: float, optional
+        The maximum frequency of spikes in Hz (default is 0.3).
+
+    Returns:
+    - None
+    """
 
     # Lists to use for annotations for potential spikes in new file
     onsets = []
