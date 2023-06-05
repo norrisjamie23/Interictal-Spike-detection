@@ -51,11 +51,6 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
     nmf = nimfa.Nmf(
         ll_data, max_iter=5, rank=nmf_params.rank, n_run=30, objective="rss"
     )
-    # nmf = nimfa.Nmf(
-    #     ll_data, max_iter=5, rank=nmf_params.rank, n_run=1, objective="rss"
-    # )
-    # TODO enable above
-
     nmf_fit = nmf()
 
     # Print RSS of best model
@@ -74,7 +69,6 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray, rank: int = 5):
         H=H,
         rank=rank,
         max_iter=1000,
-        # max_iter=10,  # 000, TODO change to 1000
         min_residuals=1e-4,
     )
     lsnmf_fit = lsnmf()
@@ -104,28 +98,26 @@ def save_spikes_for_labelling(
     """
     Save potential spikes for manual labelling.
 
-    Parameters:
-    - original_data: RawEDF
+    Parameters
+    ----------
+    original_data : RawEDF
         The original EEG data.
-    - H: ndarray
+    H : ndarray
         The spike activation matrix.
-    - W: ndarray
+    W : ndarray
         The weight matrix.
-    - preprocess_params: object
+    preprocess_params : object
         The preprocessing parameters.
-    - save_location: str
+    save_location : str
         The file path to save the processed data.
-    - num_chans: int, optional
+    num_chans : int, optional
         The number of channels to consider (default is 20).
-    - spikes_per_cluster: int, optional
+    spikes_per_cluster : int, optional
         The number of spikes to select per cluster (default is 10).
-    - context: int, optional
+    context : int, optional
         The context duration in seconds around each spike (default is 5).
-    - max_spike_freq: float, optional
+    max_spike_freq : float, optional
         The maximum frequency of spikes in Hz (default is 0.3).
-
-    Returns:
-    - None
     """
 
     # Lists to use for annotations for potential spikes in new file
@@ -234,39 +226,16 @@ def save_spikes_for_labelling(
     mne.export.export_raw(save_location, raw, overwrite=True)
 
 
-# @task
-# def predict(grid: GridSearchCV, X_test: pd.DataFrame):
-#     """_summary_
-
-#     Parameters
-#     ----------
-#     grid : GridSearchCV
-#     X_test : pd.DataFrame
-#         Features for testing
-#     """
-#     return grid.predict(X_test)
-# @task
-# def save_model(model: GridSearchCV, save_path: str):
-#     """Save model to a specified location
-
-#     Parameters
-#     ----------
-#     model : GridSearchCV
-#     save_path : str
-#     """
-#     joblib.dump(model, save_path)
-
-
 @task
-def save_predictions(predictions: np.array, save_path: str):
-    """Save predictions to a specified location
+def save_model(model: np.ndarray, save_path: str):
+    """Save model (i.e., weights) to a specified location
 
     Parameters
     ----------
-    predictions : np.array
+    model : np.ndarray
     save_path : str
     """
-    joblib.dump(predictions, save_path)
+    joblib.dump(model, save_path)
 
 
 @flow
@@ -292,9 +261,7 @@ def train(
         original_data, W, H, preprocess_params, location.data_for_labelling
     )
 
-    # predictions = predict(model, data["X_test"])
-    # save_model(model, save_path=location.model)
-    # save_predictions(predictions, save_path=location.data_final)
+    save_model(W, save_path=location.model)
 
 
 if __name__ == "__main__":
