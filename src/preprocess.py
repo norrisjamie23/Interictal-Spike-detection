@@ -5,7 +5,7 @@ import mne
 import numpy as np
 from prefect import flow, task
 
-from config import Location, PreprocessConfig
+from config import Location, PreprocessParams
 from utils import get_raw_data
 
 
@@ -121,7 +121,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
 
 
 @task
-def package_data(ll_data, highpass_freq, H_freq):
+def package_data(ll_data, config):
     """Package line-length transformed data for saving.
 
     Parameters
@@ -141,8 +141,8 @@ def package_data(ll_data, highpass_freq, H_freq):
     """
     return {
         "ll_data": ll_data,
-        "highpass_freq": highpass_freq,
-        "H_freq": H_freq,
+        "highpass_freq": config.highpass_freq,
+        "H_freq": config.H_freq,
     }
 
 
@@ -163,7 +163,7 @@ def save_preprocessed_data(data: dict, save_location: str):
 @flow
 def preprocess(
     location: Location = Location(),
-    config: PreprocessConfig = PreprocessConfig(),
+    config: PreprocessParams = PreprocessParams(),
 ):
     """Flow to preprocess the ata
 
@@ -171,8 +171,8 @@ def preprocess(
     ----------
     location : Location, optional
         Locations of inputs and outputs, by default Location()
-    config : PreprocessConfig, optional
-        Configurations for preprocessing data, by default PreprocessConfig()
+    config : PreprocessParams, optional
+        Configurations for preprocessing data, by default PreprocessParams()
     """
     data = get_raw_data(location.data_raw)
     preprocessed_data = preprocess_data(data, config)
@@ -181,4 +181,4 @@ def preprocess(
 
 
 if __name__ == "__main__":
-    preprocess(config=PreprocessConfig())
+    preprocess(config=PreprocessParams())
