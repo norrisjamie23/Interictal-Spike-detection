@@ -5,8 +5,8 @@ import mne
 import numpy as np
 from prefect import flow, task
 
-from config import Location, PreprocessParams
-from utils import get_raw_data
+from config import Location
+from utils import get_raw_data, load_config
 
 
 def line_length(a, w=20):
@@ -39,7 +39,7 @@ def line_length(a, w=20):
 
 
 @task
-def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
+def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config):
     """Apply pre-processing, including line-length transformation
 
     Parameters
@@ -66,7 +66,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
     data = mne.io.RawArray(raw, data.info)
 
     # Bandpass filter between 0.1 and highpass_freq (Default: 50 Hz)
-    data.filter(0.1, config.highpass_freq)
+    data.filter(0.1, preprocess_config['highpass_freq'])
 
     # Get data as a NumPy array
     raw = data.get_data()
@@ -85,9 +85,9 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
     # Create a new RawEDF object with the transformed data
     data = mne.io.RawArray(raw, data.info)
 
-    # Notch filter from 50 Hz, up in 50 Hz increments
-    notch_filter_freqs = np.arange(50, config.highpass_freq, 50)
-    if len(notch_filter_freqs) > 0:
+    # Notch filter from powerline_freq (default: 50 Hz), up in 50 Hz increments
+    notch_filter_freqs = np.arange(preprocess_config['powerline_freq'], preprocess_config['highpass_freq'], preprocess_config['powerline_freq'])
+    if notch_filter_freqs:
         data.notch_filter(notch_filter_freqs)
 
     # Resample to 500 Hz
@@ -109,7 +109,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
     data.filter(None, 20)
 
     # Resample (default: 50 Hz)
-    data.resample(sfreq=config.H_freq)
+    data.resample(sfreq=50)
 
     # Get data as a NumPy array
     ll_data = data.get_data()
@@ -118,32 +118,6 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, config):
     ll_data[ll_data < 0] = 0
 
     return ll_data
-
-
-@task
-def package_data(ll_data, config):
-    """Package line-length transformed data for saving.
-
-    Parameters
-    ----------
-    ll_data : np.ndarray
-        Line-length transformed data.
-    highpass_freq : int
-        High-pass filter frequency.
-    H_freq : int
-        Resampling frequency.
-
-    Returns
-    -------
-    dict
-        Dictionary containing the packaged data and parameters.
-
-    """
-    return {
-        "ll_data": ll_data,
-        "highpass_freq": config.highpass_freq,
-        "H_freq": config.H_freq,
-    }
 
 
 @task
@@ -162,8 +136,7 @@ def save_preprocessed_data(data: dict, save_location: str):
 
 @flow
 def preprocess(
-    location: Location = Location(),
-    config: PreprocessParams = PreprocessParams(),
+    location: Location = Location()
 ):
     """Flow to preprocess the ata
 
@@ -171,14 +144,13 @@ def preprocess(
     ----------
     location : Location, optional
         Locations of inputs and outputs, by default Location()
-    config : PreprocessParams, optional
-        Configurations for preprocessing data, by default PreprocessParams()
     """
+    preprocess_config = load_config(location.detection_config)['preprocess']
+
     data = get_raw_data(location.data_raw)
-    preprocessed_data = preprocess_data(data, config)
-    dict_data = package_data(preprocessed_data, config)
-    save_preprocessed_data(dict_data, location.data_preprocess)
+    preprocessed_data = preprocess_data(data, preprocess_config)
+    save_preprocessed_data(preprocessed_data, location.data_preprocess)
 
 
 if __name__ == "__main__":
-    preprocess(config=PreprocessParams())
+    preprocess()
