@@ -15,9 +15,3 @@ class Location(BaseModel):
     model: str = "models/nmf_weights.pkl"
     input_notebook: str = "notebooks/analyze_results.ipynb"
     output_notebook: str = "notebooks/results.ipynb"
-
-
-class ModelParams(BaseModel):
-    """Specify the parameters of the `train` flow"""
-
-    rank: int = 5

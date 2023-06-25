@@ -6,8 +6,8 @@ import numpy as np
 from prefect import flow, task
 from scipy.signal import resample
 
-from config import Location, ModelParams, PreprocessParams
-from utils import (find_valid_peaks, get_raw_data, get_thresholds,
+from config import Location
+from utils import (find_valid_peaks, get_raw_data, get_thresholds, load_config,
                    remove_border_spikes)
 
 
@@ -24,12 +24,12 @@ def get_preprocessed_data(data_location: str):
 
 
 @task
-def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
+def train_model(model_config: dict, ll_data: np.ndarray):
     """Train the model using NMF (Nonnegative Matrix Factorization)
 
     Parameters
     ----------
-    model_params : ModelParams
+    model_config : dict
         Parameters for the model
     ll_data : np.ndarray
         Line-length transformed data to use for training
@@ -42,11 +42,11 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
         Matrix of activation scores (coefficients)
     """
 
-    print(f"Training NMF model with rank {nmf_params.rank}")
+    print(f"Training NMF model with rank {model_config['rank']}")
 
     # Perform NMF with multiple runs and multiplicative updates
     nmf = nimfa.Nmf(
-        ll_data, max_iter=5, rank=nmf_params.rank, n_run=30
+        ll_data, max_iter=5, rank=model_config['rank'], n_run=30
     )
     nmf_fit = nmf()
 
@@ -64,7 +64,7 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
         seed="fixed",
         W=W,
         H=H,
-        rank=nmf_params.rank,
+        rank=model_config['rank'],
         max_iter=1000,
         min_residuals=1e-4,
     )
@@ -85,12 +85,12 @@ def save_spikes_for_labelling(
     original_data: mne.io.edf.edf.RawEDF,
     W: np.ndarray,
     H: np.ndarray,
-    preprocess_params,
     save_location: str,
     num_chans: int = 20,
     spikes_per_cluster: int = 10,
     context: int = 5,
     max_spike_freq=0.3,
+    H_freq=50,
 ):
     """
     Save potential spikes for manual labelling.
@@ -103,8 +103,6 @@ def save_spikes_for_labelling(
         The spike activation matrix.
     W : ndarray
         The weight matrix.
-    preprocess_params : object
-        The preprocessing parameters.
     save_location : str
         The file path to save the processed data.
     num_chans : int, optional
@@ -115,6 +113,8 @@ def save_spikes_for_labelling(
         The context duration in seconds around each spike (default is 5).
     max_spike_freq : float, optional
         The maximum frequency of spikes in Hz (default is 0.3).
+    H_freq : int, optional
+        Frequency of activation matrix H.
     """
 
     # Lists to use for annotations for potential spikes in new file
@@ -132,14 +132,14 @@ def save_spikes_for_labelling(
 
         # Find peaks that are at least max_spike_freq seconds apart
         peak_indices, peak_heights = find_valid_peaks(
-            H[base_idx], preprocess_params.H_freq, max_spike_freq
+            H[base_idx], H_freq, max_spike_freq
         )
 
         # Remove border spikes: i.e., those in first/last context seconds (default: 5s)
         peak_indices, peak_heights = remove_border_spikes(
             peak_indices,
             peak_heights,
-            preprocess_params.H_freq,
+            H_freq,
             context,
             H.shape[1],
         )
@@ -159,7 +159,7 @@ def save_spikes_for_labelling(
             spike_idx = peak_indices[index]
 
             # Get peak in seconds
-            spike_second = spike_idx / preprocess_params.H_freq
+            spike_second = spike_idx / H_freq
 
             # Return data centred around (potential) spike
             spike_eeg = original_data.get_data(
@@ -172,8 +172,8 @@ def save_spikes_for_labelling(
             spike_activation = H[
                 base_idx,
                 spike_idx
-                - context * preprocess_params.H_freq : spike_idx
-                + context * preprocess_params.H_freq,
+                - context * H_freq : spike_idx
+                + context * H_freq,
             ]
 
             # Resample to EEG frequency
@@ -234,8 +234,6 @@ def save_model(model: np.ndarray, save_path: str):
 @flow
 def train(
     location: Location = Location(),
-    nmf_params: ModelParams = ModelParams(),
-    preprocess_params: PreprocessParams = PreprocessParams(),
 ):
     """Flow to train the model
 
@@ -246,12 +244,15 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
+
+    model_config = load_config(location.detection_config)['model']
+
     preprocessed_data = get_preprocessed_data(location.data_preprocess)
-    W, H = train_model(nmf_params, preprocessed_data["ll_data"])
+    W, H = train_model(model_config, preprocessed_data)
 
     original_data = get_raw_data(location.data_raw, preload=False)
     save_spikes_for_labelling(
-        original_data, W, H, preprocess_params, location.data_for_labelling
+        original_data, W, H, location.data_for_labelling
     )
 
     save_model(W, save_path=location.model)
