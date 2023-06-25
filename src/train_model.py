@@ -74,8 +74,8 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
     print("Final model RSS: %5.4f" % lsnmf_fit.fit.rss())
 
     # Get weights (W) and activation scores (H)
-    H = np.array(lsnmf_fit.basis())
-    W = np.array(lsnmf_fit.coef())
+    W = np.array(lsnmf_fit.basis())
+    H = np.array(lsnmf_fit.coef())
 
     return W, H
 
@@ -83,8 +83,8 @@ def train_model(nmf_params: ModelParams, ll_data: np.ndarray):
 @task
 def save_spikes_for_labelling(
     original_data: mne.io.edf.edf.RawEDF,
-    H: np.ndarray,
     W: np.ndarray,
+    H: np.ndarray,
     preprocess_params,
     save_location: str,
     num_chans: int = 20,
@@ -131,13 +131,9 @@ def save_spikes_for_labelling(
         )
 
         # Find peaks that are at least max_spike_freq seconds apart
-        peaks = find_valid_peaks(
+        peak_indices, peak_heights = find_valid_peaks(
             H[base_idx], preprocess_params.H_freq, max_spike_freq
         )
-
-        # Get heights and indices from peaks
-        peak_indices = peaks[0]
-        peak_heights = peaks[1]
 
         # Remove border spikes: i.e., those in first/last context seconds (default: 5s)
         peak_indices, peak_heights = remove_border_spikes(

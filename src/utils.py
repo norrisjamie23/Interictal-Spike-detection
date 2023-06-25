@@ -2,6 +2,7 @@
 
 import mne
 import numpy as np
+import yaml
 from prefect import flow, task
 from scipy.signal import find_peaks, savgol_filter
 
@@ -84,7 +85,7 @@ def get_minimum_thresh(H: np.ndarray, k=1):
     return threshold
 
 
-def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq):
+def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, height=None):
     """Find valid peaks in the activation function.
 
     Parameters
@@ -104,8 +105,10 @@ def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq):
         The corresponding heights of the identified peaks.
     """
 
-    # Get minimum threshold to use
-    height = get_minimum_thresh(activation)
+    # If threshold not provided
+    if not height:
+        # Get minimum threshold to use
+        height = get_minimum_thresh(activation)
 
     # Minimum number of datapoints between detections (default: 0.3s)
     distance = max_spike_freq * H_freq
@@ -210,3 +213,27 @@ def get_thresholds(
 
     # Return a subset of thresholds based on the specified num_thresholds parameter
     return thresholds[:num_thresholds]
+
+
+def load_config(filename):
+    """
+    Loads a YAML configuration file and returns its contents as a Python object.
+
+    Parameters:
+        filename (str): The path to the YAML configuration file.
+
+    Returns:
+        dict or list: The contents of the YAML file as a Python object.
+
+    Raises:
+        FileNotFoundError: If the specified file does not exist.
+        yaml.YAMLError: If there is an error in parsing the YAML file.
+
+    Example:
+        config_data = load_config('config.yaml')
+
+    """
+    with open(filename, 'r') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+
+    return config

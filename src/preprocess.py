@@ -46,7 +46,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config):
     ----------
     data : mne.io.edf.edf.RawEDF
         Data to preprocess.
-    config : dict
+    preprocess_config : dict
         Configuration parameters.
 
         Returns
@@ -87,7 +87,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config):
 
     # Notch filter from powerline_freq (default: 50 Hz), up in 50 Hz increments
     notch_filter_freqs = np.arange(preprocess_config['powerline_freq'], preprocess_config['highpass_freq'], preprocess_config['powerline_freq'])
-    if notch_filter_freqs:
+    if len(notch_filter_freqs) > 0:
         data.notch_filter(notch_filter_freqs)
 
     # Resample to 500 Hz
