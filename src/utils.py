@@ -96,6 +96,8 @@ def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, he
         The frequency (or sample rate) for the activation time-series.
     max_spike_freq : number
         The maximum frequency at which spikes are expected to occur (in datapoints)
+    height : number
+        Required height of peaks in H.
 
     Returns
     -------
