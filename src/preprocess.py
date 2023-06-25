@@ -39,7 +39,7 @@ def line_length(a, w=20):
 
 
 @task
-def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config):
+def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config: dict):
     """Apply pre-processing, including line-length transformation
 
     Parameters
