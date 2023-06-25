@@ -1,6 +1,1 @@
-thresholds:
-  cluster_0: None
-  cluster_1: 0.1
-  cluster_2: 0.042
-  cluster_3: None
-  cluster_4: 0.034
+thresholds: [None, 0.1, 0.042, None, 0.034]
