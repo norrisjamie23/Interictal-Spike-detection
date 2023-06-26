@@ -8,6 +8,7 @@ class Location(BaseModel):
     """Specify the locations of inputs and outputs"""
 
     detection_config: str = "detection_config.yaml"
+    detections: str = "data/processed/MS_detections.csv"
     thresholds: str = "thresholds.yaml"
     data_raw: str = "/Users/jamienorris/Documents/GOSH_SEEG_Analysis/stuart_data/MS/MS_IED_red_proc.edf"
     data_preprocess: str = "data/processed/MS.pkl"

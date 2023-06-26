@@ -1,1 +1,1 @@
-thresholds: [None, 0.1, 0.042, None, 0.034]
+thresholds: [null, 0.075, 0.039, 0.029, 0.026]
