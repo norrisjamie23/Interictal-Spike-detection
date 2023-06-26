@@ -132,7 +132,7 @@ def save_spikes_for_labelling(
 
         # Find peaks that are at least max_spike_freq seconds apart
         peak_indices, peak_heights = find_valid_peaks(
-            H[base_idx], H_freq, max_spike_freq
+            H[base_idx], H_freq, max_spike_freq, height='auto'
         )
 
         # Remove border spikes: i.e., those in first/last context seconds (default: 5s)
