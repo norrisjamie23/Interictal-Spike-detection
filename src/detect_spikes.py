@@ -6,8 +6,8 @@ from prefect import flow, task
 from scipy.signal import resample
 from sklearn.decomposition import NMF
 
-from config import Location, ModelParams, PreprocessParams
-from utils import (find_valid_peaks, get_raw_data, get_thresholds,
+from config import Location
+from utils import (find_valid_peaks, get_raw_data, get_thresholds, load_config,
                    remove_border_spikes)
 
 
@@ -35,7 +35,7 @@ def load_model(load_path: str):
 
 
 @task
-def detect_spikes(preprocessed_data, W, preprocess_params, thresholds):
+def detect_spikes(preprocessed_data, W, max_spike_freq, thresholds, H_freq=50):
 
     # Provide fitted weights W to scikit-learn NMF to get activation score H
     nmf = NMF(init='custom', n_components=W.shape[1])
@@ -47,15 +47,13 @@ def detect_spikes(preprocessed_data, W, preprocess_params, thresholds):
 
         # Find peaks that are at least max_spike_freq seconds apart
         peak_indices, peak_heights = find_valid_peaks(
-            H[base_idx], preprocess_params.H_freq, max_spike_freq=0.3, height=thresholds[base_idx]  # TODO parameterise
+            H[base_idx], H_freq, max_spike_freq=max_spike_freq, height=thresholds[base_idx]  # TODO parameterise
         )
 
 
 @flow
 def detect(
     location: Location = Location(),
-    nmf_params: ModelParams = ModelParams(),
-    preprocess_params: PreprocessParams = PreprocessParams(),
 ):
     """Flow to train the model
 
@@ -63,13 +61,14 @@ def detect(
     ----------
     location : Location, optional
         Locations of inputs and outputs, by default Location()
-    svc_params : ModelParams, optional
-        Configurations for training the model, by default ModelParams()
     """
+    thresholds = load_config(location.thresholds)['thresholds']
+    preprocess_config = load_config(location.detection_config)['preprocess']
+
     preprocessed_data = get_preprocessed_data(location.data_preprocess)
     W = load_model(location.model)
-    spikes = detect_spikes(preprocessed_data, W, preprocess_params)
-    spikes
+    spikes = detect_spikes(preprocessed_data, W, thresholds)
+    spikes, preprocess_config
 
 
 if __name__ == "__main__":

@@ -24,13 +24,13 @@ def get_preprocessed_data(data_location: str):
 
 
 @task
-def train_model(model_config: dict, ll_data: np.ndarray):
+def train_model(rank: int, ll_data: np.ndarray):
     """Train the model using NMF (Nonnegative Matrix Factorization)
 
     Parameters
     ----------
-    model_config : dict
-        Parameters for the model
+    rank : int
+        Rank for NMF model
     ll_data : np.ndarray
         Line-length transformed data to use for training
 
@@ -42,11 +42,11 @@ def train_model(model_config: dict, ll_data: np.ndarray):
         Matrix of activation scores (coefficients)
     """
 
-    print(f"Training NMF model with rank {model_config['rank']}")
+    print(f"Training NMF model with rank {rank}")
 
     # Perform NMF with multiple runs and multiplicative updates
     nmf = nimfa.Nmf(
-        ll_data, max_iter=5, rank=model_config['rank'], n_run=30
+        ll_data, max_iter=5, rank=rank, n_run=30
     )
     nmf_fit = nmf()
 
@@ -64,7 +64,7 @@ def train_model(model_config: dict, ll_data: np.ndarray):
         seed="fixed",
         W=W,
         H=H,
-        rank=model_config['rank'],
+        rank=rank,
         max_iter=1000,
         min_residuals=1e-4,
     )
@@ -85,11 +85,11 @@ def save_spikes_for_labelling(
     original_data: mne.io.edf.edf.RawEDF,
     W: np.ndarray,
     H: np.ndarray,
+    max_spike_freq: float,
     save_location: str,
     num_chans: int = 20,
     spikes_per_cluster: int = 10,
     context: int = 5,
-    max_spike_freq=0.3,
     H_freq=50,
 ):
     """
@@ -99,10 +99,12 @@ def save_spikes_for_labelling(
     ----------
     original_data : RawEDF
         The original EEG data.
-    H : ndarray
-        The spike activation matrix.
     W : ndarray
         The weight matrix.
+    H : ndarray
+        The spike activation matrix.
+    max_spike_freq : float
+        The maximum frequency of spikes in Hz (default is 0.3).
     save_location : str
         The file path to save the processed data.
     num_chans : int, optional
@@ -111,8 +113,6 @@ def save_spikes_for_labelling(
         The number of spikes to select per cluster (default is 10).
     context : int, optional
         The context duration in seconds around each spike (default is 5).
-    max_spike_freq : float, optional
-        The maximum frequency of spikes in Hz (default is 0.3).
     H_freq : int, optional
         Frequency of activation matrix H.
     """
@@ -244,15 +244,15 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
-
+    preprocess_config = load_config(location.detection_config)['preprocess']
     model_config = load_config(location.detection_config)['model']
 
     preprocessed_data = get_preprocessed_data(location.data_preprocess)
-    W, H = train_model(model_config, preprocessed_data)
+    W, H = train_model(model_config['rank'], preprocessed_data)
 
     original_data = get_raw_data(location.data_raw, preload=False)
     save_spikes_for_labelling(
-        original_data, W, H, location.data_for_labelling
+        original_data, W, H, max_spike_freq=preprocess_config['max_spike_freq'], save_location=location.data_for_labelling
     )
 
     save_model(W, save_path=location.model)
