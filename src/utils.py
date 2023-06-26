@@ -1,5 +1,7 @@
 """Python script to process the data"""
 
+import csv
+
 import mne
 import numpy as np
 import yaml
@@ -85,7 +87,7 @@ def get_minimum_thresh(H: np.ndarray, k=1):
     return threshold
 
 
-def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, height=None):
+def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, height='auto'):
     """Find valid peaks in the activation function.
 
     Parameters
@@ -96,8 +98,8 @@ def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, he
         The frequency (or sample rate) for the activation time-series.
     max_spike_freq : number
         The maximum frequency at which spikes are expected to occur (in datapoints)
-    height : number
-        Required height of peaks in H.
+    height : number or 'auto'
+        Required height of peaks in H. If 'auto', found using get_minimum_thresh. Use None if not a valid cluster.
 
     Returns
     -------
@@ -107,9 +109,11 @@ def find_valid_peaks(activation: np.ndarray, H_freq: int, max_spike_freq=0.5, he
         The corresponding heights of the identified peaks.
     """
 
-    # If threshold not provided
+    # If threshold is None, return empty list
     if not height:
-        # Get minimum threshold to use
+        return [], []
+    elif height == 'auto':
+        # If auto, determine minimum threshold to use
         height = get_minimum_thresh(activation)
 
     # Minimum number of datapoints between detections (default: 0.3s)
@@ -222,20 +226,45 @@ def load_config(filename):
     Loads a YAML configuration file and returns its contents as a Python object.
 
     Parameters:
-        filename (str): The path to the YAML configuration file.
+    -----------
+    filename : str
+        The path to the YAML configuration file.
 
     Returns:
-        dict or list: The contents of the YAML file as a Python object.
+    --------
+    dict or list
+        The contents of the YAML file as a Python object.
 
     Raises:
-        FileNotFoundError: If the specified file does not exist.
-        yaml.YAMLError: If there is an error in parsing the YAML file.
+    -------
+    FileNotFoundError
+        If the specified file does not exist.
+    yaml.YAMLError
+        If there is an error in parsing the YAML file.
 
     Example:
-        config_data = load_config('config.yaml')
-
+    ---------
+    config_data = load_config('config.yaml')
     """
+
     with open(filename, 'r') as file:
         config = yaml.load(file, Loader=yaml.FullLoader)
 
     return config
+
+
+def save_list_as_csv(list_to_save: list, filename: str):
+    """
+    Saves a list as a CSV file.
+
+    Parameters:
+    -----------
+    list_to_save : list
+        The list that should be saved.
+    filename : str
+        The path to the CSV file.
+    """
+
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(list_to_save)
