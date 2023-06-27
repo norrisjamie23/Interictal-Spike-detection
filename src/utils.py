@@ -1,11 +1,13 @@
-"""Python script to process the data"""
+"""Collection of Python functions used elsewhere"""
 
 import csv
+import os
+import shutil
 
 import mne
 import numpy as np
 import yaml
-from prefect import flow, task
+from prefect import task
 from scipy.signal import find_peaks, savgol_filter
 
 
@@ -268,3 +270,36 @@ def save_list_as_csv(list_to_save: list, filename: str):
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(list_to_save)
+
+
+def file_to_folder(filename: str):
+    """
+    Extracts the folder path from a filename.
+
+    Parameters:
+    -----------
+    filename : str
+        The name of the file including the extension.
+
+    Returns:
+    --------
+    str
+        The folder path extracted from the filename.
+    """
+
+    return os.path.dirname(filename)
+
+
+def copy_file(src: str, dst: str):
+    """
+    Copies a file from the source path to the destination path.
+
+    Parameters:
+    -----------
+    src : str
+        The source path of the file to be copied.
+    dst : str
+        The destination path where the file will be copied.
+    """
+
+    shutil.copyfile(src, dst)

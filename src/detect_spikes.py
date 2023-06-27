@@ -1,4 +1,4 @@
-"""Python script to train the model"""
+"""Python script to detect spikes given model weights and some thresholds"""
 import joblib
 import numpy as np
 from prefect import flow, task

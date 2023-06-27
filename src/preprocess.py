@@ -1,12 +1,14 @@
 """Python script to preprocess the data"""
 
+import os
+import sys
+
 import joblib
 import mne
 import numpy as np
 from prefect import flow, task
 
-from config import Location
-from utils import get_raw_data, load_config
+from utils import copy_file, file_to_folder, get_raw_data, load_config
 
 
 def line_length(a, w=20):
@@ -136,21 +138,42 @@ def save_preprocessed_data(data: dict, save_location: str):
 
 @flow
 def preprocess(
-    location: Location = Location()
+    raw_data_path: str,
+    detection_config: str = "detection_config.yaml"
 ):
-    """Flow to preprocess the ata
-
-    Parameters
-    ----------
-    location : Location, optional
-        Locations of inputs and outputs, by default Location()
     """
-    preprocess_config = load_config(location.detection_config)['preprocess']
+    Preprocess the raw data, then save this preprocessed data along with the configuration file.
 
-    data = get_raw_data(location.data_raw)
+    Parameters:
+    -----------
+    raw_data_path : str
+        The path to the raw edf file.
+    detection_config : str, optional
+        The path to the configuration file (default is "detection_config.yaml").
+
+    Example:
+    ---------
+    preprocess('path/to/raw_data.edf', 'detection_config.yaml')
+    """
+
+    # Load the relevant configuration parameters
+    preprocess_config = load_config(detection_config)['preprocess']
+
+    # Load the raw data
+    data = get_raw_data(raw_data_path)
+
+    # Preprocess the data
     preprocessed_data = preprocess_data(data, preprocess_config)
-    save_preprocessed_data(preprocessed_data, location.data_preprocess)
+
+    # Obtain the folder path for the raw data file
+    data_folder = file_to_folder(raw_data_path)
+
+    # Save the preprocessed data in the same folder as the raw data, as "data_processed.pkl"
+    save_preprocessed_data(preprocessed_data, os.path.join(data_folder, "data_processed.pkl"))
+
+    # Copy the configuration file to the same folder as the preprocessed data
+    copy_file(detection_config, os.path.join(data_folder, os.path.basename(detection_config)))
 
 
 if __name__ == "__main__":
-    preprocess()
+    preprocess(**dict(arg.split('=') for arg in sys.argv[1:]))

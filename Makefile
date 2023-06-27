@@ -28,13 +28,18 @@ docs_save:
 	@echo Save documentation to docs... 
 	PYTHONPATH=src pdoc src -o docs
 
-data/processed/xy.pkl: data/raw src/process.py
-	@echo "Processing data..."
-	python src/process.py
+raw_data_path:=
+raw_data_path_opt:=$(addprefix raw_data_path=,$(raw_data_path))
 
-models/svc.pkl: data/processed/xy.pkl src/train_model.py
-	@echo "Training model..."
-	python src/train_model.py
+train:
+	@echo "Preprocessing data"
+	python src/preprocess.py $(raw_data_path_opt)
+
+detect:
+	@echo "Preprocessing data"
+	python src/preprocess.py $(preprocess)
+	@echo "Running detection"
+	python src/detect.py $(model_dir)
 
 notebooks/results.ipynb: models/svc.pkl src/run_notebook.py
 	@echo "Running notebook..."

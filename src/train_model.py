@@ -1,4 +1,6 @@
 """Python script to train the model"""
+import sys
+
 import joblib
 import mne
 import nimfa
@@ -6,7 +8,6 @@ import numpy as np
 from prefect import flow, task
 from scipy.signal import resample
 
-from config import Location
 from utils import (find_valid_peaks, get_raw_data, get_thresholds, load_config,
                    remove_border_spikes)
 
@@ -233,7 +234,7 @@ def save_model(model: np.ndarray, save_path: str):
 
 @flow
 def train(
-    location: Location = Location(),
+    config_path,
 ):
     """Flow to train the model
 
@@ -244,8 +245,9 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
-    preprocess_config = load_config(location.detection_config)['preprocess']
-    model_config = load_config(location.detection_config)['model']
+    location = 'TODO'
+    preprocess_config = load_config(config_path)['preprocess']
+    model_config = load_config(config_path)['model']
 
     preprocessed_data = get_preprocessed_data(location.data_preprocess)
     W, H = train_model(model_config['rank'], preprocessed_data)
@@ -259,4 +261,4 @@ def train(
 
 
 if __name__ == "__main__":
-    train()
+    train(**dict(arg.split('=') for arg in sys.argv[1:]))
