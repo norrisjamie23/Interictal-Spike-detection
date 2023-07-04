@@ -3,6 +3,7 @@
 import csv
 import os
 import shutil
+from pathlib import Path
 
 import mne
 import numpy as np
@@ -264,8 +265,11 @@ def save_list_as_csv(list_to_save: list, filename: str):
     list_to_save : list
         The list that should be saved.
     filename : str
-        The path to the CSV file.
+        The path to the CSV file. The directory is created if it doesn't exist.
     """
+
+    # Create folder if it doesn't exist
+    os.makedirs(Path(filename).parent, exist_ok=True)
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
