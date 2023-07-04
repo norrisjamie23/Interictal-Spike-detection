@@ -31,15 +31,16 @@ docs_save:
 raw_data_path:=
 raw_data_path_opt:=$(addprefix raw_data_path=,$(raw_data_path))
 
+model_dir:=
+model_dir_opt:=$(addprefix model_dir=,$(model_dir))
+
 train:
-	@echo "Preprocessing data"
-	python src/preprocess.py $(raw_data_path_opt)
+	@echo "Preprocessing data and then training an NMF model on it"
+	python src/train_workflow.py $(raw_data_path_opt)
 
 detect:
-	@echo "Preprocessing data"
-	python src/preprocess.py $(preprocess)
-	@echo "Running detection"
-	python src/detect.py $(model_dir)
+	@echo "Preprocessing data and running detection on it"
+	python src/detect_workflow.py $(raw_data_path_opt) $(model_dir_opt)
 
 notebooks/results.ipynb: models/svc.pkl src/run_notebook.py
 	@echo "Running notebook..."

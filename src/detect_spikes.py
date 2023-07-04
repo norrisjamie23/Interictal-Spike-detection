@@ -1,10 +1,12 @@
 """Python script to detect spikes given model weights and some thresholds"""
+import os
+from pathlib import Path
+
 import joblib
 import numpy as np
 from prefect import flow, task
 from sklearn.decomposition import NMF
 
-from config import Location
 from utils import find_valid_peaks, load_config, save_list_as_csv
 
 
@@ -90,7 +92,9 @@ def detect_spikes(preprocessed_data: np.ndarray, W: np.ndarray, max_spike_freq: 
 
 @flow
 def detect(
-    location: Location = Location(),
+    preprocessed_data_dir: str,
+    model_dir: str,
+    save_path: str
 ):
     """Flow to train the model
 
@@ -99,15 +103,17 @@ def detect(
     location : Location, optional
         Locations of inputs and outputs, by default Location()
     """
-    thresholds = load_config(location.thresholds)['thresholds']
-    preprocess_config = load_config(location.detection_config)['preprocess']
+    thresholds_path = f'{Path(model_dir)}{os.sep + "thresholds.yaml"}'
+    thresholds = load_config(thresholds_path)['thresholds']
 
-    preprocessed_data = get_preprocessed_data(location.data_preprocess)
-    W = load_model(location.model)
+    config_path = f'{Path(model_dir)}{os.sep + "detection_config.yaml"}'
+    config = load_config(config_path)['preprocess']
 
-    detections = detect_spikes(preprocessed_data, W, preprocess_config['max_spike_freq'], thresholds)
-    save_list_as_csv(detections, location.detections)
+    preprocessed_data_path = f'{Path(preprocessed_data_dir)}{os.sep + "data_processed.pkl"}'
+    preprocessed_data = get_preprocessed_data(preprocessed_data_path)
 
+    model_path = f'{Path(model_dir)}{os.sep + "nmf_weights.pkl"}'
+    W = load_model(model_path)
 
-if __name__ == "__main__":
-    detect()
+    detections = detect_spikes(preprocessed_data, W, config['max_spike_freq'], thresholds)
+    save_list_as_csv(detections, save_path)

@@ -245,7 +245,8 @@ def train(
     svc_params : ModelParams, optional
         Configurations for training the model, by default ModelParams()
     """
-    location = 'TODO'
+    location = None  # TODO: fix this
+
     preprocess_config = load_config(config_path)['preprocess']
     model_config = load_config(config_path)['model']
 
@@ -261,4 +262,5 @@ def train(
 
 
 if __name__ == "__main__":
+    print(sys.argv)
     train(**dict(arg.split('=') for arg in sys.argv[1:]))

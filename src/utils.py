@@ -272,24 +272,6 @@ def save_list_as_csv(list_to_save: list, filename: str):
         writer.writerows(list_to_save)
 
 
-def file_to_folder(filename: str):
-    """
-    Extracts the folder path from a filename.
-
-    Parameters:
-    -----------
-    filename : str
-        The name of the file including the extension.
-
-    Returns:
-    --------
-    str
-        The folder path extracted from the filename.
-    """
-
-    return os.path.dirname(filename)
-
-
 def copy_file(src: str, dst: str):
     """
     Copies a file from the source path to the destination path.
