@@ -1,4 +1,5 @@
-"""Python script to train the model"""
+"""Python script to preprocess an edf file and run detection on it given directory with model weights and some thresholds"""
+
 import sys
 from pathlib import Path
 
@@ -14,7 +15,6 @@ def detect_flow(raw_data_path: str, model_dir: str) -> None:
     ----------
     raw_data_path : str
         The path to the raw data file.
-
     model_dir : str
         The directory containing the detection model.
 

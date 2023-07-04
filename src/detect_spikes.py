@@ -1,4 +1,5 @@
 """Python script to detect spikes given model weights and some thresholds"""
+
 import os
 from pathlib import Path
 

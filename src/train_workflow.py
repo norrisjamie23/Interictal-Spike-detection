@@ -1,4 +1,5 @@
-"""Python script to train the model"""
+"""Python script to preprocess an edf file and train an NMF model on it"""
+
 import sys
 
 import numpy as np
