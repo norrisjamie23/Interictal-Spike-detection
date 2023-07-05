@@ -1,6 +1,5 @@
 """Python script to detect spikes given model weights and some thresholds"""
 
-import os
 from pathlib import Path
 
 import joblib
@@ -96,25 +95,39 @@ def detect(
     preprocessed_data_dir: str,
     model_dir: str,
     save_path: str
-):
-    """Flow to train the model
+) -> None:
+
+    """
+    Perform the flow to detect spikes in preprocessed data using a trained model.
 
     Parameters
     ----------
-    location : Location, optional
-        Locations of inputs and outputs, by default Location()
+    preprocessed_data_dir : str
+        The directory path where the preprocessed data is stored.
+    model_dir : str
+        The directory path where the trained model and configuration files are stored.
+    save_path : str
+        The file path where the spike detections will be saved.
     """
-    thresholds_path = f'{Path(model_dir)}{os.sep + "thresholds.yaml"}'
+
+    # Get path to thresholds from model_dir, then load thresholds
+    thresholds_path = Path(model_dir) / Path("thresholds.yaml")
     thresholds = load_config(thresholds_path)['thresholds']
 
-    config_path = f'{Path(model_dir)}{os.sep + "detection_config.yaml"}'
+    # Get path to config file from model_dir, then load config
+    config_path = Path(model_dir) / Path("detection_config.yaml")
     config = load_config(config_path)['preprocess']
 
-    preprocessed_data_path = f'{Path(preprocessed_data_dir)}{os.sep + "data_processed.pkl"}'
+    # Get path to preprocessed data, then load
+    preprocessed_data_path = Path(preprocessed_data_dir) / Path("data_processed.pkl")
     preprocessed_data = get_preprocessed_data(preprocessed_data_path)
 
-    model_path = f'{Path(model_dir)}{os.sep + "nmf_weights.pkl"}'
+    # Get model path and load model
+    model_path = Path(model_dir) / Path("nmf_weights.pkl")
     W = load_model(model_path)
 
+    # Detect spikes from preprocessed data using model, config, and thresholds
     detections = detect_spikes(preprocessed_data, W, config['max_spike_freq'], thresholds)
+
+    # Save detections as save_path
     save_list_as_csv(detections, save_path)

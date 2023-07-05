@@ -3,6 +3,7 @@
 import math
 import os
 import sys
+from pathlib import Path
 
 import joblib
 import mne
@@ -10,7 +11,7 @@ import numpy as np
 from prefect import flow, task
 from scipy.signal.windows import hann
 
-from utils import copy_file, get_raw_data, load_config
+from utils import copy_file, create_directory, get_raw_data, load_config
 
 
 def line_length(a, w=20):
@@ -259,12 +260,13 @@ def preprocess(
     preprocessed_data = np.concatenate(preprocessed_data, axis=1)
 
     # Obtain the folder path for the raw data file, and create subdirectory called tmp
-    tmp_data_folder = os.path.join('data', 'processed')
-    if not os.path.exists(tmp_data_folder):
-        os.makedirs(tmp_data_folder)
+    tmp_data_folder = Path("data") / Path("preprocessed")
+
+    # Create temporary folder if it doesn't exist
+    create_directory(tmp_data_folder)
 
     # Save the preprocessed data in the same folder as the raw data, as "data_processed.pkl"
-    save_preprocessed_data(preprocessed_data, os.path.join(tmp_data_folder, "data_processed.pkl"))
+    save_preprocessed_data(preprocessed_data, Path(tmp_data_folder) / Path("data_processed.pkl"))
 
     # Get path for where config file should be copied to: same folder as the preprocessed data
     config_path = os.path.join(tmp_data_folder, os.path.basename(detection_config))
@@ -272,7 +274,7 @@ def preprocess(
     # Copy the config file
     copy_file(detection_config, config_path)
 
-    return tmp_data_folder
+    return f'{tmp_data_folder}'
 
 
 if __name__ == "__main__":

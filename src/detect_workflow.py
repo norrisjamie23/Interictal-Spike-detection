@@ -9,7 +9,7 @@ from preprocess import preprocess
 
 def detect_flow(raw_data_path: str, model_dir: str) -> None:
     """
-    Perform seizure detection on preprocessed data using a specified model.
+    Preprocess an edf file and run detection on it given directory with model weights and some thresholds.
 
     Parameters
     ----------
@@ -17,10 +17,6 @@ def detect_flow(raw_data_path: str, model_dir: str) -> None:
         The path to the raw data file.
     model_dir : str
         The directory containing the detection model.
-
-    Returns
-    -------
-    None
     """
 
     # Preprocess data, saving to returned directory (tmp_data_folder)

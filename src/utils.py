@@ -268,12 +268,33 @@ def save_list_as_csv(list_to_save: list, filename: str):
         The path to the CSV file. The directory is created if it doesn't exist.
     """
 
-    # Create folder if it doesn't exist
-    os.makedirs(Path(filename).parent, exist_ok=True)
+    # Create parent folder if it doesn't exist
+    create_directory(filename, file=True)
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(list_to_save)
+
+
+def create_directory(directory: str, file: bool = False):
+
+    """
+    Create a directory, or optionally create a parent directory for a file that is to be created.
+
+    Parameters:
+    -----------
+    filename : str
+        The file that is to be created - parent of this is created if it doesn't exist.
+    file : bool
+        Setting this to true instead creates the parent directory. Set to true if directory is a file.
+    """
+
+    # If directory is a file, and we want to create the parent folder
+    if file:
+        os.makedirs(Path(directory).parent, exist_ok=True)
+    # Else if directory is a folder, and we want to create it
+    else:
+        os.makedirs(Path(directory), exist_ok=True)
 
 
 def copy_file(src: str, dst: str):
@@ -288,4 +309,5 @@ def copy_file(src: str, dst: str):
         The destination path where the file will be copied.
     """
 
+    # Copy file from src to dst
     shutil.copyfile(src, dst)

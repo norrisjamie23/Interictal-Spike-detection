@@ -1,5 +1,7 @@
-"""Python script to train the model"""
-import sys
+"""Python script to train a model on a preprocessed edf file"""
+
+from datetime import datetime
+from pathlib import Path
 
 import joblib
 import mne
@@ -8,8 +10,8 @@ import numpy as np
 from prefect import flow, task
 from scipy.signal import resample
 
-from utils import (find_valid_peaks, get_raw_data, get_thresholds, load_config,
-                   remove_border_spikes)
+from utils import (copy_file, create_directory, find_valid_peaks, get_raw_data,
+                   get_thresholds, load_config, remove_border_spikes)
 
 
 @task
@@ -234,33 +236,56 @@ def save_model(model: np.ndarray, save_path: str):
 
 @flow
 def train(
-    config_path,
+    tmp_data_folder: str,
+    raw_data_path: str,
 ):
     """Flow to train the model
 
     Parameters
     ----------
-    location : Location, optional
-        Locations of inputs and outputs, by default Location()
-    svc_params : ModelParams, optional
-        Configurations for training the model, by default ModelParams()
+    tmp_data_folder : str
+        The path to the folder where preprocessed data and the config file are stored.
+    raw_data_path : str
+        The path to the raw data file used for training the model.
     """
-    location = None  # TODO: fix this
 
+    # Config file is stored here
+    config_path = Path(tmp_data_folder) / Path("detection_config.yaml")
+
+    # Preprocessed data is stored here
+    preprocessed_data_path = Path(tmp_data_folder) / Path("data_processed.pkl")
+
+    # Load relevant config for preprocessing and model training
     preprocess_config = load_config(config_path)['preprocess']
     model_config = load_config(config_path)['model']
 
-    preprocessed_data = get_preprocessed_data(location.data_preprocess)
+    # Model will be stored here - e.g., AA_04-07-2023_12:32
+    model_dir = f'{Path(raw_data_path).parent / Path(raw_data_path).parent.stem}_{datetime.now().strftime("%d-%m-%Y_%H-%M")}'
+
+    # Create temporary folder if it doesn't exist
+    create_directory(model_dir)
+
+    # Load preprocessed data
+    preprocessed_data = get_preprocessed_data(preprocessed_data_path)
+
+    # Train a model given the preprocessed data and model config
     W, H = train_model(model_config['rank'], preprocessed_data)
 
-    original_data = get_raw_data(location.data_raw, preload=False)
+    # Load the original data
+    original_data = get_raw_data(raw_data_path, preload=False)
+
+    # Save proposed_ieds.edf for labelling
     save_spikes_for_labelling(
-        original_data, W, H, max_spike_freq=preprocess_config['max_spike_freq'], save_location=location.data_for_labelling
+        original_data, W, H, max_spike_freq=preprocess_config['max_spike_freq'], save_location=Path(model_dir) / Path("proposed_ieds.edf")
     )
 
-    save_model(W, save_path=location.model)
+    # Save the model weights
+    save_model(W, save_path=Path(model_dir) / Path("nmf_weights.pkl"))
 
+    # Copy config file to model directory
+    new_config_path = Path(model_dir) / Path("detection_config.yaml")
+    copy_file(src=f'{config_path}', dst=f'{new_config_path}')
 
-if __name__ == "__main__":
-    print(sys.argv)
-    train(**dict(arg.split('=') for arg in sys.argv[1:]))
+    # Copy thresholds file template to model directory
+    new_thresholds_path = Path(model_dir) / Path("thresholds.yaml")
+    copy_file(src='thresholds.yaml', dst=f'{new_thresholds_path}')
