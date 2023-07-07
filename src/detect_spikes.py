@@ -87,6 +87,16 @@ def detect_spikes(preprocessed_data: np.ndarray, W: np.ndarray, max_spike_freq: 
             # Add cluster index to detections[1]
             detections[1].extend([base_idx] * len(peak_indices))
 
+    # Convert to numpy array for faster sorting
+    detections = np.array(detections)
+
+    # Array that would sort detections chronologically
+    index_array = np.argsort(detections[0])
+
+    # Sort detections into chronological order
+    detections[0] = detections[0][index_array]
+    detections[1] = detections[1][index_array]
+
     return detections
 
 

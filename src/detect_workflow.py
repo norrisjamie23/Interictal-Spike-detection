@@ -25,7 +25,7 @@ def detect_flow(raw_data_path: str, model_dir: str) -> None:
     # The detections will be saved here
     # A subdirectory with the model name is created (if it doesn't exist) with the model name
     # The detection .csv is stored in this file with the name of the edf file (but .csv instead of .edf)
-    save_path = f'{Path(raw_data_path).parent / Path(model_dir).stem / Path(raw_data_path).stem}.csv'
+    save_path = f'{Path(raw_data_path).parent / Path("detections") / Path(model_dir).stem / Path(raw_data_path).stem}.csv'
 
     # Perform detection and save to aforementioned location
     detect(tmp_data_folder, model_dir, save_path)
