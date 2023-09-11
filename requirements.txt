@@ -1,0 +1,8 @@
+joblib==1.3.1
+mne==1.4.2
+nimfa==1.4.0
+numpy==1.25.1
+prefect==2.11.0
+PyYAML==6.0
+scikit_learn==1.3.0
+scipy==1.11.2
