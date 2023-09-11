@@ -70,7 +70,7 @@ def preprocess_data(data: mne.io.edf.edf.RawEDF, preprocess_config: dict):
     data = mne.io.RawArray(raw, data.info)
 
     # Bandpass filter between 0.1 and highpass_freq (Default: 50 Hz)
-    data.filter(0.1, preprocess_config['highpass_freq'])
+    data.filter(l_freq=preprocess_config['lowpass_freq'], h_freq=preprocess_config['highpass_freq'])
 
     # Get data as a NumPy array
     raw = data.get_data()
