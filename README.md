@@ -51,3 +51,8 @@ pip install -r requirements.txt
     make detect raw_data_path="/path/to/file.edf" model_dir="/path/to/model"
     ```
     Note here that the former doesn't need to be the same file that the model was trained on - it just needs to be for the same patient and with the same channels - and the latter is simply the path to the directory created in the previous step. This will create a detections subdirectory in the same directory as the data you're running detection on. Within this subdirectory will be another subdirectory named after the model you've used, and within here will be a CSV with your detections. This will have 2 rows: the first will correspond to timings of each IED, and the second will have an index of which basis function it belongs to. These will be in chronological order.
+
+### Analysis
+There are additional functions to analyse trained models. In ```notebooks/analysis.ipynb```, you can produce a heatmap for basis functions for a trained model:
+
+![weights for a basis function](/images/IED_heatmap.svg)

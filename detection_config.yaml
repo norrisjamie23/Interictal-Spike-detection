@@ -2,7 +2,7 @@ preprocess:
   highpass_freq: 0.1
   lowpass_freq: 50
   powerline_freq: 50
-  max_spike_freq: 0.3
+  max_spike_freq: 0.5
 
 model:
   rank: 5
